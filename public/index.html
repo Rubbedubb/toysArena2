@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>Toys Arena Phone Upgrades</title>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 30px;
+      background: #161616;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    #status {
+      margin-bottom: 20px;
+      color: #cccccc;
+    }
+
+    .money {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 25px;
+      color: #ffb347;
+    }
+
+    button {
+      width: 90%;
+      max-width: 430px;
+      padding: 20px;
+      margin: 12px auto;
+      display: block;
+      border: none;
+      border-radius: 18px;
+      background: #ff7a1a;
+      color: white;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    button:active {
+      transform: scale(0.96);
+      background: #ff9b45;
+    }
+
+    button:disabled {
+      background: #555555;
+      opacity: 0.55;
+    }
+
+    .small {
+      display: block;
+      font-size: 15px;
+      opacity: 0.85;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Toys Arena</h1>
+  <p id="status">Connecting...</p>
+
+  <div class="money">
+    Money: <span id="money">0</span> kr
+  </div>
+
+  <button id="damageButton" onclick="sendUpgrade('damage')">
+    Damage +
+    <span class="small">Cost: <span id="damageCost">?</span> kr | Level: <span id="damageLevel">0</span></span>
+  </button>
+
+  <button id="fireRateButton" onclick="sendUpgrade('fire_rate')">
+    Fire Rate +
+    <span class="small">Cost: <span id="fireRateCost">?</span> kr | Level: <span id="fireRateLevel">0</span></span>
+  </button>
+
+  <button id="speedButton" onclick="sendUpgrade('speed')">
+    Speed +
+    <span class="small">Cost: <span id="speedCost">?</span> kr | Level: <span id="speedLevel">0</span></span>
+  </button>
+
+  <button id="healButton" onclick="sendUpgrade('heal')">
+    Heal
+    <span class="small">Cost: <span id="healCost">?</span> kr | Level: <span id="healLevel">0</span></span>
+  </button>
+
+  <script>
+    const statusText = document.getElementById("status");
+
+    const protocol = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${protocol}://${location.host}/ws`);
+
+    ws.onopen = function () {
+      statusText.textContent = "Connected";
+
+      ws.send(JSON.stringify({
+        type: "request_state"
+      }));
+    };
+
+    ws.onclose = function () {
+      statusText.textContent = "Disconnected";
+    };
+
+    ws.onerror = function () {
+      statusText.textContent = "Connection error";
+    };
+
+    ws.onmessage = function (event) {
+      let data;
+
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      if (data.type === "state") {
+        updateState(data);
+      }
+
+      if (data.type === "purchase_result") {
+        if (data.success) {
+          statusText.textContent = "Upgrade bought: " + data.upgrade;
+        } else {
+          statusText.textContent = "Not enough money";
+        }
+      }
+    };
+
+    function sendUpgrade(upgradeName) {
+      if (ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: "upgrade",
+        upgrade: upgradeName
+      }));
+    }
+
+    function updateState(data) {
+      document.getElementById("money").textContent = data.money;
+
+      document.getElementById("damageCost").textContent = data.costs.damage;
+      document.getElementById("fireRateCost").textContent = data.costs.fire_rate;
+      document.getElementById("speedCost").textContent = data.costs.speed;
+      document.getElementById("healCost").textContent = data.costs.heal;
+
+      document.getElementById("damageLevel").textContent = data.levels.damage;
+      document.getElementById("fireRateLevel").textContent = data.levels.fire_rate;
+      document.getElementById("speedLevel").textContent = data.levels.speed;
+      document.getElementById("healLevel").textContent = data.levels.heal;
+
+      document.getElementById("damageButton").disabled = data.money < data.costs.damage;
+      document.getElementById("fireRateButton").disabled = data.money < data.costs.fire_rate;
+      document.getElementById("speedButton").disabled = data.money < data.costs.speed;
+      document.getElementById("healButton").disabled = data.money < data.costs.heal;
+    }
+  </script>
+</body>
+</html>
